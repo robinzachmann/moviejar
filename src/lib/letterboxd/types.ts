@@ -15,9 +15,12 @@ export type ProgressEvent =
 	  }
 	| {
 			status: 'fetching_details'
-			currentFilm: string
+			// current film
+			film: FilmWithoutTmdbId
 			tmdbId: number
-			rating: number | undefined
+			tmdbType: 'movie' | 'tv'
+			isSkipped: boolean
+			// progress
 			filmsFound: number
 			totalFilms: number
 			progress: number

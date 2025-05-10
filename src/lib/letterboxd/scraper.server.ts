@@ -118,16 +118,6 @@ export const fetchLetterboxdDetails = async (
 	sendEvent: (event: ProgressEvent) => void
 ): Promise<Film[]> => {
 	// Stage 2: Fetch TMDB IDs
-	sendEvent({
-		status: 'fetching_details',
-		currentFilm: '',
-		tmdbId: 0,
-		rating: 0,
-		filmsFound: 0,
-		totalFilms: films.length,
-		progress: 0,
-		skippedFilms: []
-	})
 
 	const skippedFilms: FilmWithoutTmdbId[] = []
 	const filmsWithTmdbId: Array<Film> = []
@@ -136,8 +126,9 @@ export const fetchLetterboxdDetails = async (
 		const film = films[i]
 		try {
 			const tmdbResult = await getTmdbId(film.slug)
+			const isSkipped = tmdbResult.type !== 'movie'
 
-			if (tmdbResult.type === 'movie') {
+			if (!isSkipped) {
 				filmsWithTmdbId.push({ ...film, tmdbId: tmdbResult.id })
 			} else {
 				skippedFilms.push(film)
@@ -145,9 +136,10 @@ export const fetchLetterboxdDetails = async (
 
 			sendEvent({
 				status: 'fetching_details',
-				currentFilm: film.title,
+				film: film,
 				tmdbId: tmdbResult.id,
-				rating: film.rating,
+				tmdbType: tmdbResult.type,
+				isSkipped: isSkipped,
 				filmsFound: filmsWithTmdbId.length + 1,
 				skippedFilms: skippedFilms.map((f) => f.title),
 				totalFilms: films.length,

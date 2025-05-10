@@ -90,8 +90,8 @@
 	{:else if lastEvent.status === 'fetching_details'}
 		<div class="mb-4 rounded-md bg-blue-100 p-4 text-blue-700">
 			<p>Fetching movie details...</p>
-			<p>Processing: {lastEvent.currentFilm}</p>
-			<p>Your rating: {lastEvent.rating ? lastEvent.rating + '/10' : '-'}</p>
+			<p>Processing: {lastEvent.film.title}</p>
+			<p>Your rating: {lastEvent.film.rating ? lastEvent.film.rating + '/10' : '-'}</p>
 			<p>TMDB ID: {lastEvent.tmdbId}</p>
 			{#if skippedFilms.length > 0}
 				<div class="flex gap-2">

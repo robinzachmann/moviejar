@@ -14,6 +14,8 @@ export const GET: RequestHandler = async ({ url }) => {
 		async start(controller) {
 			const sendEvent = (event: ProgressEvent) => {
 				controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`))
+
+				// TODO: Save to database
 			}
 
 			try {
