@@ -1,79 +1,68 @@
 <script lang="ts">
 	import type { Film, ProgressEvent } from '$lib/letterboxd/types'
 
-	type Progress = {
-		status: ProgressEvent['status']
-		page: number
-		filmsFound: number
-		totalFilms: number
-		currentFilm: string
-		lastTmdbId: number | undefined
-		progress: number
-	}
-
-	let username = 'athenos'
+	let username = ''
 	let isSubmitting = false
 	let films: Film[] = []
+	let skippedFilms: string[] = []
 	let error: string | null = null
-	let progress: Progress = {
-		status: 'idle' as ProgressEvent['status'],
-		page: 0,
-		filmsFound: 0,
-		totalFilms: 0,
-		currentFilm: '',
-		lastTmdbId: undefined as number | undefined,
-		progress: 0
+	let lastEvent: ProgressEvent | undefined = undefined
+	let eventSource: EventSource | undefined = undefined
+
+	function handleSubmit(e: SubmitEvent) {
+		e.preventDefault()
+		if (!username) {
+			error = 'Please enter a username'
+			return
+		}
+		importMovies()
+	}
+
+	function cancelImport() {
+		if (eventSource) {
+			eventSource.close()
+			eventSource = undefined
+			isSubmitting = false
+			error = 'Import cancelled'
+		}
 	}
 
 	async function importMovies() {
 		isSubmitting = true
 		error = null
 		films = []
-		progress = {
-			status: 'fetching_films',
-			page: 0,
-			filmsFound: 0,
-			totalFilms: 0,
-			currentFilm: '',
-			lastTmdbId: undefined,
-			progress: 0
-		}
+		skippedFilms = []
 
 		try {
-			const eventSource = new EventSource(
+			eventSource = new EventSource(
 				`/api/letterboxd/progress?username=${encodeURIComponent(username)}`
 			)
 
 			eventSource.onmessage = (event) => {
-				const data = JSON.parse(event.data)
+				lastEvent = JSON.parse(event.data) as ProgressEvent
 
-				if (data.status === 'complete') {
-					films = data.films
-					eventSource.close()
+				if (lastEvent.status === 'complete') {
+					films = lastEvent.films
+					eventSource?.close()
+					eventSource = undefined
 					isSubmitting = false
-				} else if (data.status === 'error') {
-					error = data.error
-					if (data.lastProcessedFilm) {
-						error += `\nLast processed film: ${data.lastProcessedFilm}`
+				} else if (lastEvent.status === 'error') {
+					error = lastEvent.error
+					if (lastEvent.lastProcessedFilm) {
+						error += `\nLast processed film: ${lastEvent.lastProcessedFilm}`
 					}
-					eventSource.close()
+					eventSource?.close()
+					eventSource = undefined
 					isSubmitting = false
-				} else {
-					progress = {
-						status: data.status,
-						page: data.page || 0,
-						filmsFound: data.filmsFound || 0,
-						totalFilms: data.totalFilms || 0,
-						currentFilm: data.currentFilm || '',
-						lastTmdbId: data.lastTmdbId,
-						progress: data.progress || 0
-					}
+				} else if (lastEvent.status === 'fetching_details') {
+					skippedFilms = lastEvent.skippedFilms
 				}
 			}
 
 			eventSource.onerror = () => {
 				error = 'Connection lost'
-				eventSource.close()
+				eventSource?.close()
+				eventSource = undefined
 				isSubmitting = false
 			}
 		} catch (e) {
@@ -83,13 +72,7 @@
 	}
 </script>
 
-<h1 class="text-3xl font-bold">Welcome to SvelteKit</h1>
-
-{#if films.length > 0}
-	<div class="mb-4 rounded-md bg-green-100 p-4 text-green-700">
-		Found {films.length} films
-	</div>
-{/if}
+<h1 class="text-3xl font-bold">Import Letterboxd Films</h1>
 
 {#if error}
 	<div class="mb-4 rounded-md bg-red-100 p-4 whitespace-pre-line text-red-700">
@@ -97,43 +80,69 @@
 	</div>
 {/if}
 
-{#if progress.status === 'fetching_films'}
-	<div class="mb-4 rounded-md bg-blue-100 p-4 text-blue-700">
-		<p>Fetching watched films...</p>
-		<p>Page {progress.page}</p>
-		<p>Found {progress.filmsFound} films so far</p>
-	</div>
-{/if}
-
-{#if progress.status === 'fetching_details'}
-	<div class="mb-4 rounded-md bg-blue-100 p-4 text-blue-700">
-		<p>Fetching movie details...</p>
-		<p>Processing: {progress.currentFilm}</p>
-		{#if progress.lastTmdbId}
-			<p>TMDB ID: {progress.lastTmdbId}</p>
-		{/if}
-		<p>Progress: {progress.filmsFound} of {progress.totalFilms} films</p>
-		<div class="h-2.5 w-full rounded-full bg-gray-200">
-			<div
-				class="h-2.5 rounded-full bg-blue-600 transition-all duration-300"
-				style="width: {progress.progress}%"
-			></div>
+{#if lastEvent}
+	{#if lastEvent.status === 'fetching_films'}
+		<div class="mb-4 rounded-md bg-blue-100 p-4 text-blue-700">
+			<p>Fetching watched films...</p>
+			<p>Page {lastEvent.page}</p>
+			<p>Found {lastEvent.filmsFound} films so far</p>
 		</div>
+	{:else if lastEvent.status === 'fetching_details'}
+		<div class="mb-4 rounded-md bg-blue-100 p-4 text-blue-700">
+			<p>Fetching movie details...</p>
+			<p>Processing: {lastEvent.currentFilm}</p>
+			<p>Your rating: {lastEvent.rating ? lastEvent.rating + '/10' : '-'}</p>
+			<p>TMDB ID: {lastEvent.tmdbId}</p>
+			{#if skippedFilms.length > 0}
+				<div class="flex gap-2">
+					Skipped items: {skippedFilms.join(', ')}
+				</div>
+			{/if}
+			<p>Progress: {lastEvent.filmsFound} of {lastEvent.totalFilms} films</p>
+			<div class="h-2.5 w-full rounded-full bg-gray-200">
+				<div
+					class="h-2.5 rounded-full bg-blue-600 transition-all duration-300"
+					style="width: {lastEvent.progress}%"
+				></div>
+			</div>
+		</div>
+	{/if}
+{/if}
+
+{#if films.length > 0}
+	<div class="mb-4 rounded-md bg-green-100 p-4 text-green-700">
+		Imported {films.length} of {films.length + skippedFilms.length} films
+
+		{#if skippedFilms.length > 0}
+			<div class="flex gap-2">
+				Skipped films:
+				<ul class="flex flex-wrap gap-2">
+					{#each skippedFilms as film (film)}
+						<li class="rounded-md bg-gray-100 px-2 py-1 text-sm">
+							{film}
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
 	</div>
 {/if}
 
-<div>
-	<label for="username">Letterboxd Username</label>
-	<input type="text" bind:value={username} />
-	<button
-		on:click={importMovies}
-		class="rounded-md bg-blue-500 p-2 text-white disabled:opacity-50"
-		disabled={isSubmitting}
-	>
+<form class="mt-3 flex items-end gap-2" on:submit={handleSubmit}>
+	<label for="username" class="flex flex-col items-start gap-1">
+		<div class="text-sm">Username</div>
+		<input type="text" name="username" id="username" bind:value={username} />
+	</label>
+	<button class="rounded-md bg-blue-500 p-2 text-white disabled:opacity-50" disabled={isSubmitting}>
 		{#if isSubmitting}
 			Importing...
 		{:else}
 			Import Movies
 		{/if}
 	</button>
-</div>
+	{#if isSubmitting}
+		<button type="button" class="rounded-md bg-red-500 p-2 text-white" on:click={cancelImport}>
+			Cancel
+		</button>
+	{/if}
+</form>

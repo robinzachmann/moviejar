@@ -7,16 +7,28 @@ export interface Film {
 
 export type FilmWithoutTmdbId = Omit<Film, 'tmdbId'>
 
-export interface ProgressEvent {
-	status: 'fetching_films' | 'fetching_details' | 'complete' | 'error'
-	stage?: 'films' | 'details'
-	page?: number
-	filmsFound?: number
-	totalFilms?: number
-	currentFilm?: string
-	lastTmdbId?: number
-	progress?: number
-	films?: Film[]
-	error?: string
-	lastProcessedFilm?: string
-}
+export type ProgressEvent =
+	| {
+			status: 'fetching_films'
+			page: number
+			filmsFound: number
+	  }
+	| {
+			status: 'fetching_details'
+			currentFilm: string
+			tmdbId: number
+			rating: number | undefined
+			filmsFound: number
+			totalFilms: number
+			progress: number
+			skippedFilms: string[]
+	  }
+	| {
+			status: 'complete'
+			films: Film[]
+	  }
+	| {
+			status: 'error'
+			error: string
+			lastProcessedFilm?: string
+	  }

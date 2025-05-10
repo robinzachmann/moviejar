@@ -2,18 +2,19 @@ import * as cheerio from 'cheerio'
 import type { Film, FilmWithoutTmdbId, ProgressEvent } from './types'
 
 const RATING_MAP: Record<string, number> = {
-	'★': 1,
-	'★★': 2,
-	'★★★': 3,
-	'★★★★': 4,
-	'★★★★★': 5,
-	'★½': 1.5,
-	'★★½': 2.5,
-	'★★★½': 3.5,
-	'★★★★½': 4.5
+	'½': 1,
+	'★': 2,
+	'★½': 3,
+	'★★': 4,
+	'★★½': 5,
+	'★★★': 6,
+	'★★★½': 7,
+	'★★★★': 8,
+	'★★★★½': 9,
+	'★★★★★': 10
 }
 
-export const getTmdbId = async (slug: string): Promise<number> => {
+export const getTmdbId = async (slug: string): Promise<{ id: number; type: 'movie' | 'tv' }> => {
 	const url = `https://letterboxd.com/film/${slug}/`
 	const response = await fetch(url)
 	if (!response.ok) {
@@ -36,12 +37,17 @@ export const getTmdbId = async (slug: string): Promise<number> => {
 	}
 
 	// https://www.themoviedb.org/movie/<id>
-	const match = href.match(/\/movie\/(\d+)\//)
+	// https://www.themoviedb.org/tv/<id>
+	const match = href.match(/\/(movie|tv)\/(\d+)/)
 	if (!match) {
-		throw new Error(`Invalid TMDB link format for film ${slug}`)
+		throw new Error(`Invalid TMDB URL format for film ${slug}: ${href}`)
 	}
 
-	return parseInt(match[1])
+	const [, type, id] = match
+	return {
+		id: parseInt(id),
+		type: type as 'movie' | 'tv'
+	}
 }
 
 export const importLetterboxdFilms = async (
@@ -115,29 +121,38 @@ export const fetchLetterboxdDetails = async (
 	sendEvent({
 		status: 'fetching_details',
 		currentFilm: '',
-		lastTmdbId: 0,
+		tmdbId: 0,
+		rating: 0,
 		filmsFound: 0,
 		totalFilms: films.length,
-		progress: 0
+		progress: 0,
+		skippedFilms: []
 	})
 
+	const skippedFilms: FilmWithoutTmdbId[] = []
 	const filmsWithTmdbId: Array<Film> = []
 
 	for (let i = 0; i < films.length; i++) {
 		const film = films[i]
 		try {
-			const tmdbId = await getTmdbId(film.slug)
+			const tmdbResult = await getTmdbId(film.slug)
+
+			if (tmdbResult.type === 'movie') {
+				filmsWithTmdbId.push({ ...film, tmdbId: tmdbResult.id })
+			} else {
+				skippedFilms.push(film)
+			}
 
 			sendEvent({
 				status: 'fetching_details',
 				currentFilm: film.title,
-				lastTmdbId: tmdbId,
-				filmsFound: i + 1,
+				tmdbId: tmdbResult.id,
+				rating: film.rating,
+				filmsFound: filmsWithTmdbId.length + 1,
+				skippedFilms: skippedFilms.map((f) => f.title),
 				totalFilms: films.length,
 				progress: Math.round(((i + 1) / films.length) * 100)
 			})
-
-			filmsWithTmdbId.push({ ...film, tmdbId })
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
 			sendEvent({
