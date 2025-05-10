@@ -1,6 +1,9 @@
 <script lang="ts">
 	import type { Film, ProgressEvent } from '$lib/letterboxd/types'
 
+	/** @type {import('./$types').PageData} */
+	export let data
+
 	let username = ''
 	let isSubmitting = false
 	let films: Film[] = []
@@ -146,3 +149,26 @@
 		</button>
 	{/if}
 </form>
+
+{#if data.watchedMovies.length > 0}	
+	<div class="mt-8">
+		<h2 class="text-2xl font-bold mb-4">Your Watched Movies</h2>
+		<p class="text-sm text-gray-500 mb-2">
+			Total watched movies: {data.watchedMoviesCount}
+		</p>
+		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+			{#each data.watchedMovies as movie}
+				<div class="rounded-lg border p-4">
+					<div class="flex justify-between items-start">
+						<div>
+							<p class="font-medium">TMDB ID: {movie.tmdb_id}</p>
+							{#if movie.user_rating}
+								<p class="text-sm text-gray-600">Rating: {movie.user_rating}/10</p>
+							{/if}
+						</div>
+					</div>
+				</div>
+			{/each}
+		</div>
+	</div>
+{/if}

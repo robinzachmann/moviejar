@@ -12,3 +12,22 @@ export const INSERT_WATCHED_MOVIE = gql`
 		}
 	}
 `
+
+export const GET_WATCHED_MOVIES = gql`
+	query GetWatchedMovies($userId: bigint!) {
+		watched_movie_aggregate(where: { user_id: { _eq: $userId } }) {
+			aggregate {
+				count
+			}
+		}
+		watched_movie(
+			where: { user_id: { _eq: $userId }, user_rating: { _is_null: false } }
+			order_by: { user_rating: desc }
+			limit: 20
+		) {
+			id
+			tmdb_id
+			user_rating
+		}
+	}
+`
