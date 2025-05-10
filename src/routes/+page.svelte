@@ -1,14 +1,28 @@
 <script lang="ts">
+	import type { Film, ProgressEvent } from '$lib/letterboxd/types'
+
+	type Progress = {
+		status: ProgressEvent['status']
+		page: number
+		filmsFound: number
+		totalFilms: number
+		currentFilm: string
+		lastTmdbId: number | undefined
+		progress: number
+	}
+
 	let username = 'athenos'
 	let isSubmitting = false
-	let films: Array<{ slug: string; rating: number | undefined; tmdbId: number }> = []
+	let films: Film[] = []
 	let error: string | null = null
-	let progress = {
-		status: 'idle',
+	let progress: Progress = {
+		status: 'idle' as ProgressEvent['status'],
 		page: 0,
 		filmsFound: 0,
+		totalFilms: 0,
 		currentFilm: '',
-		lastTmdbId: undefined as number | undefined
+		lastTmdbId: undefined as number | undefined,
+		progress: 0
 	}
 
 	async function importMovies() {
@@ -16,11 +30,13 @@
 		error = null
 		films = []
 		progress = {
-			status: 'connecting',
+			status: 'fetching_films',
 			page: 0,
 			filmsFound: 0,
+			totalFilms: 0,
 			currentFilm: '',
-			lastTmdbId: undefined
+			lastTmdbId: undefined,
+			progress: 0
 		}
 
 		try {
@@ -42,13 +58,15 @@
 					}
 					eventSource.close()
 					isSubmitting = false
-				} else if (data.status === 'fetching') {
+				} else {
 					progress = {
-						status: 'fetching',
-						page: data.page,
-						filmsFound: data.filmsFound,
-						currentFilm: data.currentFilm,
-						lastTmdbId: data.lastTmdbId
+						status: data.status,
+						page: data.page || 0,
+						filmsFound: data.filmsFound || 0,
+						totalFilms: data.totalFilms || 0,
+						currentFilm: data.currentFilm || '',
+						lastTmdbId: data.lastTmdbId,
+						progress: data.progress || 0
 					}
 				}
 			}
@@ -79,16 +97,28 @@
 	</div>
 {/if}
 
-{#if progress.status === 'fetching'}
+{#if progress.status === 'fetching_films'}
 	<div class="mb-4 rounded-md bg-blue-100 p-4 text-blue-700">
-		<p>Fetching page {progress.page}...</p>
+		<p>Fetching watched films...</p>
+		<p>Page {progress.page}</p>
 		<p>Found {progress.filmsFound} films so far</p>
-		{#if progress.currentFilm}
-			<p>Processing: {progress.currentFilm}</p>
-			{#if progress.lastTmdbId}
-				<p>TMDB ID: {progress.lastTmdbId}</p>
-			{/if}
+	</div>
+{/if}
+
+{#if progress.status === 'fetching_details'}
+	<div class="mb-4 rounded-md bg-blue-100 p-4 text-blue-700">
+		<p>Fetching movie details...</p>
+		<p>Processing: {progress.currentFilm}</p>
+		{#if progress.lastTmdbId}
+			<p>TMDB ID: {progress.lastTmdbId}</p>
 		{/if}
+		<p>Progress: {progress.filmsFound} of {progress.totalFilms} films</p>
+		<div class="h-2.5 w-full rounded-full bg-gray-200">
+			<div
+				class="h-2.5 rounded-full bg-blue-600 transition-all duration-300"
+				style="width: {progress.progress}%"
+			></div>
+		</div>
 	</div>
 {/if}
 
