@@ -4,7 +4,7 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
-		"dev": "vite dev",
+		"dev": "vite -m=development dev",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
@@ -43,6 +43,9 @@
 		"vitest": "^3.0.0"
 	},
 	"dependencies": {
-		"cheerio": "^1.0.0"
+		"@types/node": "^22.15.17",
+		"cheerio": "^1.0.0",
+		"graphql": "^16.11.0",
+		"graphql-request": "^7.1.2"
 	}
 }
