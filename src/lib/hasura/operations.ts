@@ -1,3 +1,4 @@
+import type { GetWatchedMoviesQuery, InsertWatchedMovieMutation } from '$lib/graphql/graphql'
 import { gql } from 'graphql-request'
 
 export const INSERT_WATCHED_MOVIE = gql`
@@ -11,7 +12,7 @@ export const INSERT_WATCHED_MOVIE = gql`
 			user_id
 		}
 	}
-`
+` as const
 
 export const GET_WATCHED_MOVIES = gql`
 	query GetWatchedMovies($userId: bigint!) {
@@ -30,4 +31,6 @@ export const GET_WATCHED_MOVIES = gql`
 			user_rating
 		}
 	}
-`
+` as const
+
+export type { GetWatchedMoviesQuery, InsertWatchedMovieMutation }
